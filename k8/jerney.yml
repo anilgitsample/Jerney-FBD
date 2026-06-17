@@ -28,10 +28,9 @@ metadata:
     app.kubernetes.io/part-of: jerney
 type: Opaque
 data:
-  POSTGRES_USER: amVybmV5X3VzZXI=
-  POSTGRES_PASSWORD: amVybmV5X3Bhc3NfMjAyNg==
-  POSTGRES_DB: amVybmV5X2Ri
-
+  POSTGRES_USER: ${POSTGRES_USER}
+  POSTGRES_PASSWORD:  ${POSTGRES_PASSWORD}
+  POSTGRES_DB:  ${POSTGRES_DB}
 ---
 
 

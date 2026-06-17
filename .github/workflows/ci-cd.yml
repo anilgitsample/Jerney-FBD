@@ -127,7 +127,7 @@ jobs:
   #################################################
 
   dockerfile-lint:
-    name: Hadolint
+    name: "Dockerfile Hadolint"
     runs-on: ubuntu-latest
 
     strategy:
@@ -135,9 +135,10 @@ jobs:
         component: [backend, frontend]
 
     steps:
-      - uses: actions/checkout@v4
+      - name: checkout code
+        uses: actions/checkout@v4
 
-      - name: Dockerfile Scan
+      - name: run Hadolint
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: ${{ matrix.component }}/Dockerfile

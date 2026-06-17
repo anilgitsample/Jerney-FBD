@@ -15,7 +15,7 @@ sudo apt update && sudo apt upgrade -y
 
 # --- Install Node.js 20.x ---
 echo "📦 Installing Node.js 20.x..."
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -+
 sudo apt install -y nodejs
 
 echo "Node.js version: $(node -v)"
@@ -51,7 +51,9 @@ sudo mkdir -p /var/www/jerney
 sudo chown -R $USER:$USER /var/www/jerney
 
 # Copy project files (assumes you've transferred them to ~/Jerney)
-cp -r ~/Jerney/* /var/www/jerney/
+cp -r "/mnt/c/devscops project/jerney-FBD/"* /var/www/jerney/
+
+
 
 # --- Install backend dependencies ---
 echo "📦 Installing backend dependencies..."
@@ -93,3 +95,7 @@ echo "  pm2 logs            - View backend logs"
 echo "  pm2 restart all     - Restart backend"
 echo "  sudo systemctl restart nginx - Restart Nginx"
 echo ""
+
+
+
+

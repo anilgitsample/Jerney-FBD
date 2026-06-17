@@ -142,6 +142,7 @@ jobs:
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: ${{ matrix.component }}/Dockerfile
+          failure-threshold: error
 
   #################################################
   # STAGE 6 - CHECKOV

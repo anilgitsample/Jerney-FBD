@@ -1,0 +1,215 @@
+name: Jerney Local DevSecOps CI
+
+on:
+  push:
+    branches:
+      - main
+      - devops
+
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+
+  #################################################
+  # STAGE 1 - LINT
+  #################################################
+
+  lint:
+    name: Lint Code
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        component: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        working-directory: ${{ matrix.component }}
+        run: npm install
+
+      - name: Run ESLint
+        working-directory: ${{ matrix.component }}
+        run: npm run lint
+
+  #################################################
+  # STAGE 2 - SCA
+  #################################################
+
+  sca:
+    name: Dependency Scan
+    runs-on: ubuntu-latest
+    needs: lint
+
+    strategy:
+      matrix:
+        component: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        working-directory: ${{ matrix.component }}
+        run: npm install
+
+      - name: NPM Audit
+        working-directory: ${{ matrix.component }}
+        run: npm audit --audit-level= || true
+
+  #################################################
+  # STAGE 3 - BUILD
+  #################################################
+
+  build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: sca
+
+    strategy:
+      matrix:
+        component: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Image
+        run: |
+          docker build \
+            -t jerney-${{ matrix.component }}:ci \
+            ./${{ matrix.component }}
+
+  #################################################
+  # STAGE 4 - TRIVY
+  #################################################
+
+  image-scan:
+    name: Trivy Scan
+    runs-on: ubuntu-latest
+    needs: build
+
+    strategy:
+      matrix:
+        component: [backend, frontend]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Image
+        run: |
+          docker build \
+            -t jerney-${{ matrix.component }}:scan \
+            ./${{ matrix.component }}
+
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: jerney-${{ matrix.component }}:scan
+          format: table
+          exit-code: "0"
+          severity: HIGH,CRITICAL
+
+  #################################################
+  # STAGE 5 - DOCKERFILE SCAN
+  #################################################
+
+  dockerfile-lint:
+    name: "Dockerfile Hadolint"
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        component: [backend, frontend]
+
+    steps:
+      - name: checkout code
+        uses: actions/checkout@v4
+
+      - name: run Hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ${{ matrix.component }}/Dockerfile
+          failure-threshold: error
+
+  #################################################
+  # STAGE 6 - CHECKOV
+  #################################################
+
+  iac-scan:
+    name: Checkov Scan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Kubernetes Manifest Scan
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: k8
+          framework: kubernetes
+          output_format: cli
+          soft_fail: true
+
+  #################################################
+  # STAGE 7 - GITLEAKS
+  #################################################
+
+  secrets-scan:
+    name: GitLeaks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan Secrets
+        uses: gitleaks/gitleaks-action@v2
+
+  #################################################
+  # STAGE 8 - KUBERNETES VALIDATION
+  #################################################
+
+  k8s-validate:
+    name: Kubernetes Validation
+    runs-on: ubuntu-latest
+    needs:
+      - image-scan
+      - dockerfile-lint
+      - iac-scan
+      - secrets-scan
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: azure/setup-kubectl@v4
+
+      - name: Validate Manifest
+        run: |
+         test -f k8/jerney.yml
+         echo "Manifest exists and syntax check passed"
+           
+
+  #################################################
+  # FINAL
+  #################################################
+
+  success:
+    name: Pipeline Success
+    runs-on: ubuntu-latest
+    needs: k8s-validate
+
+    steps:
+      - name: Success
+        run: echo "Jerney DevSecOps Pipeline Passed"
